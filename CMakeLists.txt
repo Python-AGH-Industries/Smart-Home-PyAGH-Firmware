@@ -1,4 +1,13 @@
 cmake_minimum_required(VERSION 3.21)
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(smart-home-firmware)
-target_sources(app PRIVATE src/main.c)
+
+FILE(GLOB_RECURSE SOURCES RELATIVE ${CMAKE_SOURCE_DIR}
+    "src/*.c"
+)
+
+target_include_directories(app PRIVATE
+    ${CMAKE_SOURCE_DIR}/inc
+)
+
+target_sources(app PRIVATE ${SOURCES})
