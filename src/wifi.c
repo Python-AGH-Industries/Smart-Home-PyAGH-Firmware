@@ -1,4 +1,5 @@
 #include "../inc/wifi.h"
+#include "../inc/sensors.h"
 
 #include <zephyr/kernel.h>
 #include <zephyr/types.h>
@@ -73,9 +74,7 @@ static int publish(uint8_t* data, size_t len)
         return err;
     }
 
-    LOG_INF("Published message: \"%.*s\" on topic: \"%.*s\"", 
-        mqtt_param.message.payload.len,
-        mqtt_param.message.payload.data,
+    LOG_INF("Published message on topic: \"%.*s\"", 
         mqtt_param.message.topic.topic.size,
         mqtt_param.message.topic.topic.utf8
     );
@@ -156,7 +155,15 @@ void wifi_thread(void)
             k_sem_take(&mqtt_connected, K_FOREVER);
 
             while (k_sem_count_get(&mqtt_connected) == 0) {
-                LOG_INF("Mqtt connection established, waiting for sensor data");
+                struct sensor_data data = {
+                    .temp = {10, 20, 30},
+                    .humidity = {30, 32, 33},
+                    .pressure = {1000, 1212, 1000},
+                    .light = {60, 70, 15}
+                };
+
+                publish((uint8_t*)&data, sizeof(data));
+
                 k_sleep(K_SECONDS(1));
             }
         }
