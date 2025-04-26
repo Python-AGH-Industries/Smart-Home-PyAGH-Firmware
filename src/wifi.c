@@ -61,7 +61,7 @@ static int publish(uint8_t* data, size_t len)
 
     mqtt_param.message.payload.data = data;
     mqtt_param.message.payload.len = len;
-    mqtt_param.message.topic.qos = MQTT_QOS_1_AT_LEAST_ONCE;
+    mqtt_param.message.topic.qos = MQTT_QOS_0_AT_MOST_ONCE;
     mqtt_param.message_id = mqtt_helper_msg_id_get();
     mqtt_param.message.topic.topic.utf8 = SENSOR_PUBLISH_TOPIC;
     mqtt_param.message.topic.topic.size = sizeof(SENSOR_PUBLISH_TOPIC) - 1,
@@ -74,7 +74,8 @@ static int publish(uint8_t* data, size_t len)
         return err;
     }
 
-    LOG_INF("Published message on topic: \"%.*s\"", 
+    LOG_INF("Published %d bytes on topic: \"%.*s\"", 
+        len,
         mqtt_param.message.topic.topic.size,
         mqtt_param.message.topic.topic.utf8
     );
@@ -153,18 +154,21 @@ void wifi_thread(void)
             }
 
             k_sem_take(&mqtt_connected, K_FOREVER);
+            k_sem_give(&mqtt_connected);
 
-            while (k_sem_count_get(&mqtt_connected) == 0) {
+            while (k_sem_count_get(&mqtt_connected)) {
                 struct sensor_data data = {
-                    .temp = {10, 20, 30},
-                    .humidity = {30, 32, 33},
-                    .pressure = {1000, 1212, 1000},
-                    .light = {60, 70, 15}
+                    .userId = 1,
+                    .readingId = sys_rand32_get(),
+                    .temp = {104, 207, 302},
+                    .humidity = {303, 321, 332},
+                    .pressure = {1000000, 1212000, 1000999},
+                    .light = {0, 70000, 15000}
                 };
 
                 publish((uint8_t*)&data, sizeof(data));
 
-                k_sleep(K_SECONDS(1));
+                k_sleep(K_SECONDS(30));
             }
         }
         LOG_INF("App stoped");
