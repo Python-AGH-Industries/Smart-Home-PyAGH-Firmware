@@ -160,10 +160,10 @@ void wifi_thread(void)
                 struct sensor_data data = {
                     .userId = 1,
                     .readingId = sys_rand32_get(),
-                    .temp = {104, 207, 302},
-                    .humidity = {303, 321, 332},
-                    .pressure = {1000000, 1212000, 1000999},
-                    .light = {0, 70000, 15000}
+                    .temp = {100 + sys_rand16_get() % 210, 200 + sys_rand16_get() % 160, 300 + sys_rand16_get() % 110},
+                    .humidity = {300 + sys_rand16_get() % 101, 320 + sys_rand16_get() % 100, 100 + sys_rand16_get() % 200},
+                    .pressure = {900000 + sys_rand32_get() % 200000, 1000000 + sys_rand32_get() % 100000, 1000999 + sys_rand32_get() % 50000},
+                    .light = {sys_rand32_get() % 50000, 70000 + sys_rand32_get() % 10000, 15000 + sys_rand32_get() % 40000}
                 };
 
                 publish((uint8_t*)&data, sizeof(data));
