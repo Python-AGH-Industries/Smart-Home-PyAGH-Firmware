@@ -17,8 +17,6 @@
 K_THREAD_DEFINE(wifi, WIFI_STACK_SIZE, wifi_thread, NULL, NULL, NULL, 1, 0, 0);
 LOG_MODULE_REGISTER(wifi_logger);
 
-#define EVENT_MASK (NET_EVENT_L4_CONNECTED | NET_EVENT_L4_DISCONNECTED)
-
 static struct net_mgmt_event_callback mgmt_cb;
 static uint8_t client_id[sizeof(CONFIG_BOARD) + 11];
 
@@ -121,7 +119,9 @@ void wifi_thread(void)
 
     while (true) {
         k_sem_take(&run_app, K_FOREVER);
-        while (k_sem_count_get(&run_app) == 0) {
+        k_sem_give(&run_app);
+
+        while (k_sem_count_get(&run_app)) {
             struct mqtt_helper_cfg config = {
                 .cb = {
                     .on_connack = on_mqtt_connack,
@@ -160,15 +160,31 @@ void wifi_thread(void)
                 struct sensor_data data = {
                     .userId = 1,
                     .readingId = sys_rand32_get(),
-                    .temp = {100 + sys_rand16_get() % 210, 200 + sys_rand16_get() % 160, 300 + sys_rand16_get() % 110},
-                    .humidity = {300 + sys_rand16_get() % 101, 320 + sys_rand16_get() % 100, 100 + sys_rand16_get() % 200},
-                    .pressure = {900000 + sys_rand32_get() % 200000, 1000000 + sys_rand32_get() % 100000, 1000999 + sys_rand32_get() % 50000},
-                    .light = {sys_rand32_get() % 50000, 70000 + sys_rand32_get() % 10000, 15000 + sys_rand32_get() % 40000}
+                    .temp = {
+                        100 + sys_rand16_get() % 210,
+                        200 + sys_rand16_get() % 160,
+                        300 + sys_rand16_get() % 110
+                    },
+                    .humidity = {
+                        300 + sys_rand16_get() % 101,
+                        320 + sys_rand16_get() % 100,
+                        100 + sys_rand16_get() % 200
+                    },
+                    .pressure = {
+                        900000 + sys_rand32_get() % 200000,
+                        1000000 + sys_rand32_get() % 100000,
+                        1000999 + sys_rand32_get() % 50000
+                    },
+                    .light = {
+                        sys_rand32_get() % 50000,
+                        70000 + sys_rand32_get() % 10000,
+                        15000 + sys_rand32_get() % 40000
+                    }
                 };
 
                 publish((uint8_t*)&data, sizeof(data));
 
-                k_sleep(K_SECONDS(30));
+                k_sleep(K_SECONDS(1));
             }
         }
         LOG_INF("App stoped");
