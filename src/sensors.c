@@ -7,6 +7,36 @@ K_THREAD_DEFINE(sensors, 2048, sensors_thread, NULL, NULL, NULL, 1, 0, 0);
 
 static const struct i2c_dt_spec dev_i2c = I2C_DT_SPEC_GET(I2C_NODE);
 
+static float lps25hb_read_temperature()
+{
+    int ret;
+    uint8_t data[] = {LPS25HB_CTRL_REG1, LPS25HB_WAKE_UP_25HZ};
+    ret = i2c_write_dt(&dev_i2c, data, sizeof(data));
+    
+    if (ret < 0) {
+        printk("Failed to activate sensor, error = %d\n", ret);
+        return -1.0f;
+    }
+
+    uint8_t w_data[] = {LPS25HB_TEMP_OUT_L | LPS25HB_READ_TEMP_HIGH_LOW};
+
+    int16_t raw_temp = 0;
+    ret = i2c_write_read_dt(
+        &dev_i2c,
+        w_data,
+        sizeof(w_data),
+        (uint8_t*)&raw_temp,
+        sizeof(raw_temp)
+    );
+
+    if (ret < 0) {
+        printk("Read failed, error = %d\n", ret);
+        return -1.0f;
+    }
+
+    return 42.5f + raw_temp / 480.0f;
+}
+
 void sensors_thread(void)
 {
     int ret;
@@ -39,7 +69,8 @@ void sensors_thread(void)
     printk("I2C communication with LPS25HB established\n");
 
     while (true) {
-        printk("Hello from sensor thread\n");
+        float temperature = lps25hb_read_temperature();
+        printk("T = %.1f C\n", temperature);
         k_msleep(1000);
     }
 }
