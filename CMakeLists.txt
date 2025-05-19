@@ -1,4 +1,7 @@
 cmake_minimum_required(VERSION 3.20.0)
+
+cmake_policy(SET CMP0057 NEW)
+
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(smart-home-firmware)
 
