@@ -23,7 +23,7 @@
 
 #define LPS25HB_WHO_AM_I_EXPECTED 0xBD
 #define LPS25HB_WAKE_UP_25HZ 0xC0
-#define LPS25HB_READ_TEMP_HIGH_LOW 0x80
+#define LPS25HB_READ_NEXT 0x80
 
 struct __attribute__((packed)) sensor_data {
     uint16_t userId;
