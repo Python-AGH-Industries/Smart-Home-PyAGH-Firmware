@@ -4,11 +4,30 @@
 #include <zephyr/sys/printk.h>
 #include <zephyr/random/random.h>
 
+#include <math.h>
+
 K_THREAD_DEFINE(sensors, 2048, sensors_thread, NULL, NULL, NULL, 1, 0, 0);
 
 static const struct i2c_dt_spec dev_i2c = I2C_DT_SPEC_GET(I2C_NODE);
 
-static float lps25hb_read(struct sensor_data *data)
+static void lps25hb_calibrate(uint16_t value)
+{
+    uint8_t calibrate_data_low[] = {LPS25HB_RPDS_L, value};
+    int ret = i2c_write_dt(&dev_i2c, calibrate_data_low, sizeof(calibrate_data_low));
+    if (ret < 0) {
+        printk("Failed to set low calibration data, error = %d\n", ret);
+        return;
+    }
+
+    uint8_t calibrate_data_high[] = {LPS25HB_RPDS_H, value >> 8};
+    ret = i2c_write_dt(&dev_i2c, calibrate_data_high, sizeof(calibrate_data_high));
+    if (ret < 0) {
+        printk("Failed to set high calibration data, error = %d\n", ret);
+        return;
+    }
+}
+
+static void lps25hb_read(struct sensor_data *data)
 {
     int ret;
     uint8_t wake_up_data[] = {LPS25HB_CTRL_REG1, LPS25HB_WAKE_UP_25HZ};
@@ -16,7 +35,7 @@ static float lps25hb_read(struct sensor_data *data)
     
     if (ret < 0) {
         printk("Failed to activate sensor, error = %d\n", ret);
-        return -1.0f;
+        return;
     }
 
     uint8_t w_temp_data[] = {LPS25HB_TEMP_OUT_L | LPS25HB_READ_NEXT};
@@ -35,7 +54,7 @@ static float lps25hb_read(struct sensor_data *data)
 
     if (ret < 0) {
         printk("Temperature read failed, error = %d\n", ret);
-        return -1.0f;
+        return;
     }
 
     ret = i2c_write_read_dt(
@@ -48,18 +67,24 @@ static float lps25hb_read(struct sensor_data *data)
 
     if (ret < 0) {
         printk("Pressure read failed, error = %d\n", ret);
-        return -1.0f;
+        return;
     }
 
-    uint16_t temperature_scaled = 425 + raw_temp / 48.0f;
-    uint32_t pressure_scaled = raw_pres * 1000.0f / 4096.0f;
+    const float h = 207.0f;
+    const float mu = 0.034162608734308;
+
+    float temperature = 42.5f + raw_temp / 480.0f;
+    float absolute_pressure = raw_pres / 4096.0f;
+
+    uint16_t temperature_scaled = temperature * 10;
+    uint32_t pressure_relative_scaled = absolute_pressure * 1000 * exp(mu * h / (temperature + 273.15f));
 
     data->temp[0] = temperature_scaled;
     data->temp[1] = temperature_scaled + sys_rand16_get() % 20 + 10;
     data->temp[2] = temperature_scaled - sys_rand16_get() % 20 - 20;
-    data->pressure[0] = pressure_scaled;
-    data->pressure[1] = pressure_scaled + sys_rand32_get() % 2000 + 1000;
-    data->pressure[2] = pressure_scaled + sys_rand32_get() % 2000 - 1000;
+    data->pressure[0] = pressure_relative_scaled;
+    data->pressure[1] = pressure_relative_scaled + sys_rand32_get() % 2000 + 1000;
+    data->pressure[2] = pressure_relative_scaled + sys_rand32_get() % 2000 - 1000;
 }
 
 void sensors_thread(void)
@@ -92,6 +117,8 @@ void sensors_thread(void)
     }
 
     printk("I2C communication with LPS25HB established\n");
+
+    lps25hb_calibrate(112);
 
     while (true) {
         struct sensor_data data;
